@@ -1,0 +1,50 @@
+on: [push]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    
+    - uses: azure/docker-login@v1
+      with:
+        login-server: acralla.azurecr.io
+        username: ${{ secrets.acr_acralla_username }}
+        password: ${{ secrets.acr_acralla_password }}
+    
+    - name: Build and push image to ACR
+      id: build-image
+      run: |
+        docker build "$GITHUB_WORKSPACE/" -f  "Dockerfile" -t acralla.azurecr.io/aksalla:${{ github.sha }} --label dockerfile-path=Dockerfile
+        docker push acralla.azurecr.io/aksalla:${{ github.sha }}
+    
+    - uses: azure/k8s-set-context@v1
+      with:
+         kubeconfig: ${{ secrets.aks_aksalla_kubeConfig }}
+      id: login
+    
+    - name: Create namespace
+      run: |
+        namespacePresent=`kubectl get namespace | grep aks-alla8e3b | wc -l`
+        if [ $namespacePresent -eq 0 ]
+        then
+            echo `kubectl create namespace aks-alla8e3b`
+        fi
+
+    - uses: azure/k8s-create-secret@v1
+      with:
+        namespace: aks-alla8e3b
+        container-registry-url: acralla.azurecr.io
+        container-registry-username: ${{ secrets.acr_acralla_username }}
+        container-registry-password: ${{ secrets.acr_acralla_password }}
+        secret-name: aksalladockerauth
+       
+    - uses: azure/k8s-deploy@v1.2
+      with:
+        namespace: aks-alla8e3b
+        manifests: |
+          manifests/deployment-7.yml
+          manifests/service-7.yml
+        images: |
+          acralla.azurecr.io/aksalla:${{ github.sha }}
+        imagepullsecrets: |
+          aksalladockerauth
