@@ -1,0 +1,19 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: "aksalla-610f"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: "aksalla-610f"
+  template:
+    metadata:
+      labels:
+        app: "aksalla-610f"
+    spec:
+      containers:
+        - name: "aksalla-610f"
+          image: "acralla.azurecr.io/aksalla"
+          ports:
+          - containerPort: 80
